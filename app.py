@@ -66,8 +66,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
-import tensorflow as tf
-from tensorflow import keras
 import json
 import base64
 import zipfile
@@ -5709,7 +5707,7 @@ def main():
             <strong>⚡ TECHNOLOGY STACK:</strong><br>
             • MediaPipe for pose estimation<br>
             • OpenCV for computer vision<br>
-            • TensorFlow for machine learning<br>
+            • Scikit-learn for analytics<br>
             • Plotly for data visualization<br>
             • SQLite for performance storage<br><br>
             
