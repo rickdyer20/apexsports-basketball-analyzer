@@ -53,7 +53,12 @@ TECHNICAL IMPLEMENTATION:
 import streamlit as st
 import cv2
 import numpy as np
-import mediapipe as mp
+try:
+    import mediapipe as mp
+    MEDIAPIPE_AVAILABLE = True
+except ImportError:
+    MEDIAPIPE_AVAILABLE = False
+    st.warning("MediaPipe not available. Some features may be limited.")
 import tempfile
 import os
 from io import BytesIO
@@ -64,8 +69,6 @@ from datetime import datetime
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
 import json
 import base64
 import zipfile
@@ -223,10 +226,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize MediaPipe
-mp_pose = mp.solutions.pose
-mp_hands = mp.solutions.hands
-mp_drawing = mp.solutions.drawing_utils
-mp_drawing_styles = mp.solutions.drawing_styles
+if MEDIAPIPE_AVAILABLE:
+    mp_pose = mp.solutions.pose
+    mp_hands = mp.solutions.hands
+    mp_drawing = mp.solutions.drawing_utils
+    mp_drawing_styles = mp.solutions.drawing_styles
+else:
+    mp_pose = None
+    mp_hands = None
+    mp_drawing = None
+    mp_drawing_styles = None
 
 @dataclass
 class ShotMetrics:
