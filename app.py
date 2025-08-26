@@ -4797,7 +4797,7 @@ def main():
     if 'db_manager' not in st.session_state:
         st.session_state.db_manager = DatabaseManager()
     
-    if 'analyzer' not in st.session_state:
+    if 'analyzer' not in st.session_state or st.session_state.analyzer is None:
         st.session_state.analyzer = ShotAnalyzer()
     
     # Sidebar for session management
@@ -5053,7 +5053,10 @@ def main():
         
         with col2:
             # Display latest shot metrics if available
-            if hasattr(st.session_state, 'analyzer') and st.session_state.analyzer.shot_sequence:
+            if (hasattr(st.session_state, 'analyzer') and 
+                st.session_state.analyzer is not None and 
+                hasattr(st.session_state.analyzer, 'shot_sequence') and 
+                st.session_state.analyzer.shot_sequence):
                 latest_metrics = st.session_state.analyzer.get_shot_summary()
                 
                 # ==============================================
@@ -5066,7 +5069,9 @@ def main():
                 overall_score = latest_metrics.shooting_form_score
                 
                 # Get detailed analysis if available
-                if hasattr(st.session_state.analyzer, 'last_analysis_result') and st.session_state.analyzer.last_analysis_result:
+                if (st.session_state.analyzer is not None and 
+                    hasattr(st.session_state.analyzer, 'last_analysis_result') and 
+                    st.session_state.analyzer.last_analysis_result):
                     if 'detailed_analysis' in st.session_state.analyzer.last_analysis_result:
                         detailed_analysis = st.session_state.analyzer.last_analysis_result['detailed_analysis']
                         flaws_data = detailed_analysis.get('flaws', {})
@@ -5090,16 +5095,19 @@ def main():
                 """, unsafe_allow_html=True)
                 
                 # Generate 60-day improvement plan with proper parameters
-                improvement_plan_data = st.session_state.analyzer.generate_60_day_improvement_plan(flaws_data, overall_score)
-                
-                # Format the improvement plan dictionary as a readable string
-                try:
-                    improvement_plan = st.session_state.analyzer.format_improvement_plan(improvement_plan_data)
-                    # Ensure it's a string
-                    if isinstance(improvement_plan, dict):
-                        improvement_plan = "60-day improvement plan data received but formatting failed. Please check the system."
-                except Exception as e:
-                    improvement_plan = f"Error formatting improvement plan: {str(e)}"
+                if st.session_state.analyzer is not None:
+                    improvement_plan_data = st.session_state.analyzer.generate_60_day_improvement_plan(flaws_data, overall_score)
+                    
+                    # Format the improvement plan dictionary as a readable string
+                    try:
+                        improvement_plan = st.session_state.analyzer.format_improvement_plan(improvement_plan_data)
+                        # Ensure it's a string
+                        if isinstance(improvement_plan, dict):
+                            improvement_plan = "60-day improvement plan data received but formatting failed. Please check the system."
+                    except Exception as e:
+                        improvement_plan = f"Error formatting improvement plan: {str(e)}"
+                else:
+                    improvement_plan = "Analyzer not available - please upload a video first."
                 
                 # Display 60-day improvement plan in full readable format
                 st.markdown(f"""
