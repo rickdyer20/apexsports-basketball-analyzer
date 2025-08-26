@@ -5001,11 +5001,12 @@ def main():
                             
                         if final_stills:
                             # Add final stills to the last analysis result for UI display
-                            if not hasattr(st.session_state.analyzer, 'last_analysis_result') or not st.session_state.analyzer.last_analysis_result:
-                                st.session_state.analyzer.last_analysis_result = {'detailed_analysis': {}}
-                            if 'detailed_analysis' not in st.session_state.analyzer.last_analysis_result:
-                                st.session_state.analyzer.last_analysis_result['detailed_analysis'] = {}
-                            st.session_state.analyzer.last_analysis_result['flaw_stills'] = final_stills
+                            if st.session_state.analyzer is not None:
+                                if not hasattr(st.session_state.analyzer, 'last_analysis_result') or not st.session_state.analyzer.last_analysis_result:
+                                    st.session_state.analyzer.last_analysis_result = {'detailed_analysis': {}}
+                                if 'detailed_analysis' not in st.session_state.analyzer.last_analysis_result:
+                                    st.session_state.analyzer.last_analysis_result['detailed_analysis'] = {}
+                                st.session_state.analyzer.last_analysis_result['flaw_stills'] = final_stills
                             
                         logging.info(f"Video analysis complete - {len(final_stills)} instructional stills available")
                         print(f"DEBUG: Video analysis complete - {len(final_stills)} instructional stills available")
@@ -5135,13 +5136,16 @@ def main():
                 with download_col2:
                     # Check if we have all necessary components - with detailed debugging
                     has_video = hasattr(st.session_state, 'annotated_video_bytes') and st.session_state.annotated_video_bytes
-                    has_stills = hasattr(st.session_state, 'analyzer') and hasattr(st.session_state.analyzer, 'captured_stills') and st.session_state.analyzer.captured_stills
+                    has_stills = (hasattr(st.session_state, 'analyzer') and 
+                                 st.session_state.analyzer is not None and 
+                                 hasattr(st.session_state.analyzer, 'captured_stills') and 
+                                 st.session_state.analyzer.captured_stills)
                     has_metrics = 'latest_metrics' in locals() and latest_metrics is not None
                     has_coaching = 'coaching_summary' in locals() and coaching_summary
                     
                     # Debug information (remove in production)
                     print(f"DEBUG - Download check: video={has_video}, stills={has_stills}, metrics={has_metrics}, coaching={has_coaching}")
-                    if hasattr(st.session_state, 'analyzer'):
+                    if hasattr(st.session_state, 'analyzer') and st.session_state.analyzer is not None:
                         print(f"DEBUG - Analyzer captured_stills: {hasattr(st.session_state.analyzer, 'captured_stills')}")
                         if hasattr(st.session_state.analyzer, 'captured_stills'):
                             print(f"DEBUG - Stills count: {len(st.session_state.analyzer.captured_stills) if st.session_state.analyzer.captured_stills else 0}")
@@ -5362,7 +5366,8 @@ def main():
                     st.markdown('<div class="subsection-header">🔬 Research-Backed Analysis</div>', unsafe_allow_html=True)
                 
                 # Get the latest shot analysis for detailed insights
-                if hasattr(st.session_state.analyzer, 'last_analysis_result'):
+                if (st.session_state.analyzer is not None and 
+                    hasattr(st.session_state.analyzer, 'last_analysis_result')):
                     last_result = st.session_state.analyzer.last_analysis_result
                     if last_result and 'detailed_analysis' in last_result:
                         detailed_analysis = last_result['detailed_analysis']
@@ -5451,9 +5456,14 @@ def main():
                                 recommendation = analysis.get('recommendation', 'Continue current form')
                                 
                                 # Get comprehensive coaching feedback
-                                explanation = st.session_state.analyzer.get_flaw_explanation(component)
-                                correction = st.session_state.analyzer.get_flaw_correction(component)
-                                drills = st.session_state.analyzer.get_flaw_drills(component)
+                                if st.session_state.analyzer is not None:
+                                    explanation = st.session_state.analyzer.get_flaw_explanation(component)
+                                    correction = st.session_state.analyzer.get_flaw_correction(component)
+                                    drills = st.session_state.analyzer.get_flaw_drills(component)
+                                else:
+                                    explanation = "Analyzer not available"
+                                    correction = "Upload a video to get personalized corrections"
+                                    drills = "No drills available"
                                 
                                 # Priority badge styling
                                 if priority <= 2:
