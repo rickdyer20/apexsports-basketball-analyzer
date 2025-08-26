@@ -2714,24 +2714,39 @@ Purpose: {plan.get('program_usage', {}).get('purpose', 'Track progress and impro
 
     def get_final_instructional_stills(self):
         """Get the best instructional frame stills from the entire shot sequence"""
+        # Defensive check for best_flaw_frames existence
+        if not hasattr(self, 'best_flaw_frames') or self.best_flaw_frames is None:
+            logging.warning("best_flaw_frames not initialized or is None, returning empty dict")
+            self.best_flaw_frames = {}
+            
         print(f"DEBUG: Compiling final instructional stills from {len(self.best_flaw_frames)} captured frames")
         
         final_stills = {}
         
-        for flaw_key, frame_data in self.best_flaw_frames.items():
-            # Extract phase and flaw name
-            if '_' in flaw_key:
-                phase, flaw_name = flaw_key.split('_', 1)
-            else:
-                phase, flaw_name = 'unknown', flaw_key
+        try:
+            for flaw_key, frame_data in self.best_flaw_frames.items():
+                # Defensive check for frame_data
+                if not frame_data or 'image' not in frame_data:
+                    logging.warning(f"Skipping invalid frame_data for {flaw_key}")
+                    continue
+                    
+                # Extract phase and flaw name
+                if '_' in flaw_key:
+                    phase, flaw_name = flaw_key.split('_', 1)
+                else:
+                    phase, flaw_name = 'unknown', flaw_key
+                    
+                final_stills[flaw_name] = {
+                    'image': frame_data['image'],
+                    'phase': phase,
+                    'frame_number': frame_data.get('frame', 0),
+                    'severity': frame_data.get('severity', 0),
+                    'description': f"Best instructional frame for {flaw_name.replace('_', ' ')} in {phase} phase"
+                }
                 
-            final_stills[flaw_name] = {
-                'image': frame_data['image'],
-                'phase': phase,
-                'frame_number': frame_data['frame'],
-                'severity': frame_data['severity'],
-                'description': f"Best instructional frame for {flaw_name.replace('_', ' ')} in {phase} phase"
-            }
+        except Exception as e:
+            logging.error(f"Error processing final instructional stills: {e}")
+            final_stills = {}
             
         print(f"DEBUG: Final instructional stills: {len(final_stills)} unique flaws captured")
         
@@ -2739,6 +2754,10 @@ Purpose: {plan.get('program_usage', {}).get('purpose', 'Track progress and impro
         if final_stills:
             self.captured_stills = final_stills.copy()
             print(f"DEBUG: Updated captured_stills with {len(self.captured_stills)} frames")
+        else:
+            # Ensure captured_stills is initialized even when no stills found
+            if not hasattr(self, 'captured_stills'):
+                self.captured_stills = {}
         
         return final_stills
 
@@ -4966,6 +4985,11 @@ def main():
                         # Get the best instructional stills from the entire video
                         final_stills = st.session_state.analyzer.get_final_instructional_stills()
                         
+                        # Handle case where get_final_instructional_stills returns None
+                        if final_stills is None:
+                            final_stills = {}
+                            logging.warning("get_final_instructional_stills returned None, using empty dict")
+                        
                         # Debug information about captured stills
                         if final_stills:
                             print(f"\n=== FINAL STILLS SUMMARY ===")
@@ -4983,6 +5007,7 @@ def main():
                                 st.session_state.analyzer.last_analysis_result['detailed_analysis'] = {}
                             st.session_state.analyzer.last_analysis_result['flaw_stills'] = final_stills
                             
+                        logging.info(f"Video analysis complete - {len(final_stills)} instructional stills available")
                         print(f"DEBUG: Video analysis complete - {len(final_stills)} instructional stills available")
                         
                         # Save to database if session is active
