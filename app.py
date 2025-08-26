@@ -51,7 +51,11 @@ TECHNICAL IMPLEMENTATION:
 """
 
 import streamlit as st
-import cv2
+try:
+    import cv2
+except ImportError:
+    st.error("OpenCV not available. Install opencv-python-headless.")
+    st.stop()
 import numpy as np
 try:
     import mediapipe as mp
@@ -221,8 +225,8 @@ from dataclasses import dataclass
 from typing import List, Tuple, Optional, Dict, Any
 import json
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging for deployment debugging
+logging.basicConfig(level=logging.INFO if os.environ.get('ENV') == 'production' else logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Initialize MediaPipe
@@ -253,7 +257,7 @@ class ShotMetrics:
 class DatabaseManager:
     """Manages SQLite database operations for shot tracking"""
     
-    def __init__(self, db_path: str = "shot_analysis.db"):
+    def __init__(self, db_path: str = os.environ.get('DB_PATH', ':memory:')):
         self.db_path = db_path
         self.init_database()
     
@@ -364,6 +368,9 @@ class ShotAnalyzer:
     """Advanced basketball shot analysis using MediaPipe and computer vision with research-backed metrics"""
     
     def __init__(self):
+        if not MEDIAPIPE_AVAILABLE:
+            raise ValueError("Mediapipe required for analysis")
+            
         self.pose = mp_pose.Pose(
             static_image_mode=False,
             model_complexity=2,
@@ -399,6 +406,8 @@ class ShotAnalyzer:
 
     def reset_analysis_state(self):
         """Reset all analysis state for fresh video processing - FORCE FRESH CAPTURE"""
+        logging.info("RESETTING ANALYSIS STATE - New video processing started")
+        logging.debug("Clearing all analysis tracking: phase_history, best_flaw_frames, captured_flaws")
         print(f"DEBUG: !!!! RESETTING ANALYSIS STATE - New video processing started !!!!")
         self.frame_count = 0
         self.phase_history = []
@@ -4297,9 +4306,10 @@ Purpose: {plan.get('program_usage', {}).get('purpose', 'Track progress and impro
         # Increment frame count FIRST for proper timing analysis
         self.frame_count += 1
         
-        # Debug every 30 frames to track video processing
+        # Deployment debugging - log every 30 frames
         if self.frame_count % 30 == 1:
-            print(f"DEBUG: Processing frame {self.frame_count}, shot_sequence length: {len(self.shot_sequence)}")
+            logging.info(f"Processing frame {self.frame_count}, shot_sequence length: {len(self.shot_sequence)}")
+            logging.debug(f"Frame processing details: image_shape={image.shape}, analyzer_ready={hasattr(self, 'pose')}")
         
         rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         results = self.pose.process(rgb_image)
@@ -4359,14 +4369,17 @@ Purpose: {plan.get('program_usage', {}).get('purpose', 'Track progress and impro
     
     def get_shot_summary(self) -> ShotMetrics:
         """Generate summary metrics for the entire shot sequence"""
+        logging.info(f"get_shot_summary called - shot_sequence length: {len(self.shot_sequence)}")
         print(f"DEBUG: get_shot_summary called - shot_sequence length: {len(self.shot_sequence)}")
         
         if not self.shot_sequence:
+            logging.warning("No shot sequence data available - returning default metrics")
             print("DEBUG: No shot sequence data - returning default metrics")
             return ShotMetrics(0, 0, 0, 0, 0, 0, 0, 0, datetime.now())
         
         # Find the release phase
         release_frames = [frame for frame in self.shot_sequence if frame['phase'] == 'release']
+        logging.debug(f"Found {len(release_frames)} release frames out of {len(self.shot_sequence)} total frames")
         print(f"DEBUG: Found {len(release_frames)} release frames out of {len(self.shot_sequence)} total frames")
         
         if release_frames:
@@ -4416,6 +4429,8 @@ Purpose: {plan.get('program_usage', {}).get('purpose', 'Track progress and impro
     
     def reset(self):
         """Reset analyzer for new shot"""
+        logging.info("RESETTING ANALYZER - New shot analysis started")
+        logging.debug("Clearing shot_sequence, frame_count, and all tracking data")
         print(f"DEBUG: !!!! RESETTING ANALYZER - New shot analysis started !!!!")
         self.shot_sequence = []
         self.frame_count = 0
@@ -4830,9 +4845,11 @@ def main():
                 uploaded_file = st.file_uploader("Choose a video file", type=['mp4', 'avi', 'mov', 'mkv'])
                 
                 if uploaded_file is not None:
-                    # DEBUG: Track video file changes
+                    # Log video file uploads for deployment debugging
                     video_name = uploaded_file.name
                     video_size = len(uploaded_file.getvalue())
+                    logging.info(f"NEW VIDEO UPLOADED: {video_name}, size: {video_size} bytes")
+                    logging.debug(f"Video upload details: file_type={uploaded_file.type}, name={video_name}")
                     print(f"DEBUG: !!!! NEW VIDEO UPLOADED: {video_name}, size: {video_size} bytes !!!!")
                     
                     # Store video bytes for download functionality
