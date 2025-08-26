@@ -5053,6 +5053,10 @@ def main():
                 st.info("Camera functionality requires additional setup. Please use video upload for now.")
         
         with col2:
+            # Ensure analyzer is initialized before any operations
+            if 'analyzer' not in st.session_state or st.session_state.analyzer is None:
+                st.session_state.analyzer = ShotAnalyzer()
+                
             # Display latest shot metrics if available
             if (hasattr(st.session_state, 'analyzer') and 
                 st.session_state.analyzer is not None and 
@@ -5078,7 +5082,10 @@ def main():
                         flaws_data = detailed_analysis.get('flaws', {})
                 
                 # Generate coaching summary with proper parameters
-                coaching_summary = st.session_state.analyzer.generate_coaching_summary(flaws_data, overall_score)
+                if st.session_state.analyzer is not None:
+                    coaching_summary = st.session_state.analyzer.generate_coaching_summary(flaws_data, overall_score)
+                else:
+                    coaching_summary = "Analysis unavailable - please upload a video first."
                 
                 # Display coaching summary in full readable format without height restrictions
                 st.markdown(f"""
