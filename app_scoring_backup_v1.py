@@ -1862,44 +1862,17 @@ Purpose: {plan.get('program_usage', {}).get('purpose', 'Track progress and impro
             # SHOOTING PHASE - Mechanical Execution (Power Generation)
             elif current_phase == "shooting":
                 # 1. Elbow alignment during shooting motion (Priority 1 - 18-25% accuracy impact)
-                # CORRECTED: Measure elbow alignment relative to parallel shooting plane (not arm extension)
-                
-                # Calculate elbow deviation from optimal shooting plane
-                # Optimal: Elbow should be directly under ball (minimal x-axis deviation from shoulder-wrist line)
-                
-                # Get shooting line (shoulder to wrist)
-                shooting_line_x = right_wrist.x - right_shoulder.x
-                
-                # Get elbow position relative to shooting line
-                elbow_deviation_x = right_elbow.x - right_shoulder.x
-                
-                # Calculate how much elbow deviates from the straight shooting line
-                # Positive = elbow too far forward/in front (chicken wing)
-                # Negative = elbow too far back 
-                elbow_parallel_deviation = abs(elbow_deviation_x - shooting_line_x * 0.5)  # Elbow should be halfway along shooting line in x-plane
-                
-                # Also check vertical alignment - elbow should be below shoulder level during power position
-                elbow_height_deviation = max(0, right_elbow.y - right_shoulder.y + 0.05)  # Allow 5cm below shoulder
-                
-                # Combine horizontal and vertical deviations for total alignment score
-                total_elbow_deviation = elbow_parallel_deviation + (elbow_height_deviation * 2)  # Height deviation is more critical
-                
-                if total_elbow_deviation > 0.025:  # More sensitive threshold for alignment
-                    # BIOMECHANICALLY ACCURATE SEVERITY - Based on deviation from parallel alignment
-                    if total_elbow_deviation <= 0.05:  # Minor alignment issue (2.5-5cm off)
-                        severity = 30 + (total_elbow_deviation / 0.05) * 20  # 30-50% severity
-                    elif total_elbow_deviation <= 0.08:  # Moderate alignment issue (5-8cm off)  
-                        severity = 50 + ((total_elbow_deviation - 0.05) / 0.03) * 25  # 50-75% severity
-                    elif total_elbow_deviation <= 0.12:  # Major alignment issue (8-12cm off)
-                        severity = 75 + ((total_elbow_deviation - 0.08) / 0.04) * 15  # 75-90% severity
-                    else:  # Extreme alignment issue (>12cm off parallel)
-                        severity = 90 + min((total_elbow_deviation - 0.12) / 0.05, 1) * 5  # 90-95% severity max
+                elbow_angle = self.calculate_angle(right_shoulder, right_elbow, right_wrist)
+                if elbow_angle < 85 or elbow_angle > 105:  # Tighter optimal range
+                    deviation = min(abs(elbow_angle - 95), 20)
+                    # Recalibrated - elbow alignment is important but not catastrophic
+                    severity = (deviation / 20) * 60  # Max 60% severity for elbow issues
                     flaws['shooting_elbow'] = {
                         'priority': 1, 'severity': severity,
                         'phase': 'shooting', 'optimal_frame_moment': 'mid_shooting_motion',
-                        'issue': f"Elbow alignment deviation: {total_elbow_deviation:.3f}m from optimal parallel position (horizontal: {elbow_parallel_deviation:.3f}m, height: {elbow_height_deviation:.3f}m)",
-                        'coaching_focus': "Keep elbow directly under ball and parallel to shooting line - avoid 'chicken wing' positioning",
-                        'visual_key': "Elbow stays in straight line from shoulder through ball to target",
+                        'issue': f"Elbow angle {elbow_angle:.1f}° (optimal 85-105°)",
+                        'coaching_focus': "Elbow directly under ball throughout shooting motion",
+                        'visual_key': "Straight vertical shooting line",
                         'explanation': self.get_flaw_explanation('shooting_elbow'),
                         'correction': self.get_flaw_correction('shooting_elbow'),
                         'drills': self.get_flaw_drills('shooting_elbow')
@@ -2364,11 +2337,8 @@ Purpose: {plan.get('program_usage', {}).get('purpose', 'Track progress and impro
                 severity = flaw_data.get('severity', 0)
                 priority = flaw_data.get('priority', 10)
                 
-                print(f"DEBUG: Processing flaw {flaw_name} - Phase: {flaw_phase}, Current Phase: {phase}, Severity: {severity:.1f}%, Priority: {priority}")
-                
                 # Skip if not in the right phase
                 if flaw_phase != phase:
-                    print(f"DEBUG: Skipping {flaw_name} - wrong phase (flaw: {flaw_phase}, current: {phase})")
                     continue
                 
                 # CRITICAL VALIDATION: Preparation phase flaws CANNOT be captured after release
@@ -2528,9 +2498,6 @@ Purpose: {plan.get('program_usage', {}).get('purpose', 'Track progress and impro
                     # Convert to RGB for proper Streamlit display and storage
                     still_image_rgb = cv2.cvtColor(still_image, cv2.COLOR_BGR2RGB)
                     
-                    print(f"DEBUG: Successfully captured and labeled still for {flaw_name} - Frame {current_frame}")
-                    print(f"DEBUG: Text labels added - FLAW: {coaching_focus}, FOCUS: {visual_key}")
-                    
                     flaw_stills[flaw_name] = {
                         'image': still_image_rgb,  # Store as RGB for Streamlit
                         'phase': phase,
@@ -2594,47 +2561,6 @@ Purpose: {plan.get('program_usage', {}).get('purpose', 'Track progress and impro
             print(f"DEBUG: Error in intelligent still capture: {e}")
             
         print(f"DEBUG: Captured {len(flaw_stills)} new stills for {phase} phase")
-        
-        # FALLBACK: If no stills were captured but flaws exist, create simple labeled frames
-        if len(flaw_stills) == 0 and len(flaws) > 0:
-            print("DEBUG: No optimal stills captured, creating fallback labeled frames")
-            for flaw_name, flaw_data in flaws.items():
-                flaw_phase = flaw_data.get('phase', 'unknown')
-                if flaw_phase == phase:
-                    severity = flaw_data.get('severity', 0)
-                    priority = flaw_data.get('priority', 10)
-                    coaching_focus = flaw_data.get('coaching_focus', flaw_name.replace('_', ' ').title())
-                    visual_key = flaw_data.get('visual_key', 'Key point')
-                    
-                    # Create a simple labeled frame
-                    still_image = annotated_frame.copy()
-                    
-                    # Add instructional annotations
-                    cv2.rectangle(still_image, (5, 5), (600, 120), (0, 0, 0), -1)
-                    cv2.putText(still_image, f"FLAW: {coaching_focus}", 
-                              (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                    cv2.putText(still_image, f"FOCUS: {visual_key}", 
-                              (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-                    cv2.putText(still_image, f"PHASE: {phase.upper()} | FRAME: {current_frame}", 
-                              (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                    cv2.putText(still_image, f"SEVERITY: {severity:.0f}% | PRIORITY: {priority}", 
-                              (10, 110), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-                    
-                    # Convert to RGB
-                    still_image_rgb = cv2.cvtColor(still_image, cv2.COLOR_BGR2RGB)
-                    
-                    flaw_stills[flaw_name] = {
-                        'image': still_image_rgb,
-                        'phase': phase,
-                        'frame_number': current_frame,
-                        'capture_reason': 'fallback_labeled_frame',
-                        'priority': priority,
-                        'severity': severity,
-                        'coaching_focus': coaching_focus,
-                        'visual_key': visual_key
-                    }
-                    print(f"DEBUG: Created fallback labeled frame for {flaw_name}")
-        
         return flaw_stills
 
     def get_optimal_flaw_timing(self, flaw_name, landmarks, phase, frames_in_phase):
@@ -5410,10 +5336,6 @@ def main():
                         detailed_analysis = last_result['detailed_analysis']
                         flaws = detailed_analysis.get('flaws', {})
                         flaw_stills = last_result.get('flaw_stills', {})
-                        
-                        print(f"DEBUG UI: Found {len(flaws)} flaws and {len(flaw_stills)} flaw stills")
-                        if flaw_stills:
-                            print(f"DEBUG UI: Flaw stills available: {list(flaw_stills.keys())}")
                         
                         if flaws:
                             st.markdown("#### 🎯 Priority Focus Areas (Based on Scientific Research)")
