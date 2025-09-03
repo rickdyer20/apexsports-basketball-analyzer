@@ -23,10 +23,10 @@ export STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false
 # Create necessary directories
 mkdir -p ~/.streamlit
 
-# Create Streamlit config
+# Create Streamlit config with proper port handling
 cat > ~/.streamlit/config.toml << EOF
 [server]
-port = $PORT
+port = ${PORT:-8000}
 address = "0.0.0.0"
 headless = true
 enableCORS = false
@@ -42,9 +42,10 @@ EOF
 
 echo "Configuration complete. Starting Streamlit..."
 
-# Start the application
-streamlit run app.py \
-  --server.port $PORT \
+# Start the application with proper port handling
+echo "Starting Streamlit on port $PORT"
+exec streamlit run app.py \
+  --server.port "${PORT:-8000}" \
   --server.address 0.0.0.0 \
   --server.headless true \
   --server.enableCORS false \
