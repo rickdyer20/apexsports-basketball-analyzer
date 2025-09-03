@@ -24,29 +24,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY . .
 
-# Create streamlit config directory
+# Create streamlit config directory (config will be created dynamically by run_app.py)
 RUN mkdir -p ~/.streamlit
-
-# Create streamlit config
-RUN echo "\
-[server]\n\
-port = 8080\n\
-address = \"0.0.0.0\"\n\
-headless = true\n\
-enableCORS = false\n\
-enableXsrfProtection = false\n\
-\n\
-[browser]\n\
-gatherUsageStats = false\n\
-showErrorDetails = true\n\
-" > ~/.streamlit/config.toml
-
-# Expose the port that Railway will use
-EXPOSE 8080
 
 # Set environment variables
 ENV PYTHONPATH=/app:$PYTHONPATH
 ENV STREAMLIT_SERVER_HEADLESS=true
 
-# Start command
-CMD ["streamlit", "run", "app.py", "--server.port", "8080", "--server.address", "0.0.0.0", "--server.headless", "true", "--server.enableCORS", "false", "--server.enableXsrfProtection", "false"]
+# Start command using our Python runner that handles PORT properly
+CMD ["python", "run_app.py"]
