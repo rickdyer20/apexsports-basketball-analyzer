@@ -32,4 +32,5 @@ ENV PYTHONPATH=/app:$PYTHONPATH
 ENV STREAMLIT_SERVER_HEADLESS=true
 
 # Start command using our Python runner that handles PORT properly
-CMD ["python", "run_app.py"]
+# Use ENTRYPOINT instead of CMD to prevent Railway override
+ENTRYPOINT ["python", "run_app.py"]
