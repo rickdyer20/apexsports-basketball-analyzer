@@ -34,6 +34,5 @@ ENV STREAMLIT_SERVER_HEADLESS=true
 ENV STREAMLIT_SERVER_PORT=""
 ENV STREAMLIT_SERVER_ADDRESS=""
 
-# Start command using our Python runner that handles PORT properly
-# Use bypass startup script to completely avoid Railway's Streamlit detection
-ENTRYPOINT ["python", "start.py"]
+# Start command using Railway-compatible launcher
+ENTRYPOINT ["python", "railway_launcher.py"]
