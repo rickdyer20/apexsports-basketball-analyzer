@@ -30,7 +30,10 @@ RUN mkdir -p ~/.streamlit
 # Set environment variables
 ENV PYTHONPATH=/app:$PYTHONPATH
 ENV STREAMLIT_SERVER_HEADLESS=true
+# Explicitly override Railway's Streamlit auto-detection
+ENV STREAMLIT_SERVER_PORT=""
+ENV STREAMLIT_SERVER_ADDRESS=""
 
 # Start command using our Python runner that handles PORT properly
-# Use ENTRYPOINT instead of CMD to prevent Railway override
-ENTRYPOINT ["python", "run_app.py"]
+# Use bypass startup script to completely avoid Railway's Streamlit detection
+ENTRYPOINT ["python", "start.py"]
